@@ -1,0 +1,272 @@
+.voice-mode-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    color: white;
+}
+
+.voice-mode-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem;
+    background: rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.voice-mode-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.exit-voice-mode {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.exit-voice-mode:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.voice-mode-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.voice-visualizer {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 3rem;
+}
+
+.pulse-ring {
+    position: absolute;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    animation: pulse 2s ease-out infinite;
+}
+
+.pulse-ring-1 {
+    width: 100%;
+    height: 100%;
+    animation-delay: 0s;
+}
+
+.pulse-ring-2 {
+    width: 80%;
+    height: 80%;
+    animation-delay: 0.3s;
+}
+
+.pulse-ring-3 {
+    width: 60%;
+    height: 60%;
+    animation-delay: 0.6s;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.2);
+        opacity: 0;
+    }
+}
+
+.center-circle {
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(20px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.center-circle:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.inner-circle {
+    font-size: 4rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+/* Listening state */
+.voice-visualizer.listening .pulse-ring {
+    border-color: #4ade80;
+    animation: pulse 1s ease-out infinite;
+}
+
+.voice-visualizer.listening .center-circle {
+    background: rgba(74, 222, 128, 0.3);
+    border-color: #4ade80;
+    box-shadow: 0 0 40px rgba(74, 222, 128, 0.5);
+}
+
+.voice-visualizer.listening .inner-circle {
+    animation: pulse-scale 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse-scale {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+/* Processing state */
+.voice-visualizer.processing .pulse-ring {
+    border-color: #fbbf24;
+    animation: spin 2s linear infinite;
+}
+
+.voice-visualizer.processing .center-circle {
+    background: rgba(251, 191, 36, 0.3);
+    border-color: #fbbf24;
+    box-shadow: 0 0 40px rgba(251, 191, 36, 0.5);
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Speaking state */
+.voice-visualizer.speaking .pulse-ring {
+    border-color: #60a5fa;
+    animation: pulse 0.6s ease-out infinite;
+}
+
+.voice-visualizer.speaking .center-circle {
+    background: rgba(96, 165, 250, 0.3);
+    border-color: #60a5fa;
+    box-shadow: 0 0 40px rgba(96, 165, 250, 0.5);
+}
+
+.voice-visualizer.speaking .inner-circle {
+    animation: bounce 0.5s ease-in-out infinite;
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+.voice-status {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.voice-status h3 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.transcript-preview {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.voice-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.voice-control-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.voice-control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.voice-control-btn.active {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+}
+
+.voice-control-btn.active:hover {
+    background: rgba(239, 68, 68, 0.4);
+}

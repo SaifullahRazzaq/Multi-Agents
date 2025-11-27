@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+google-generativeai
+python-dotenv
+pydantic
+google-cloud-texttospeech
+chromadb
+stripe
+redis
+slowapi
+sqlalchemy
+psycopg2-binary
+python-multipart
