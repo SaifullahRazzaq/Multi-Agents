@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        #log {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🎤 Voice Test Page</h1>
+    <p>Is page se test karo ki voice kaam kar rahi hai ya nahi</p>
+    
+    <button onclick="testVoice()">🔊 Test Voice</button>
+    <button onclick="listVoices()">📋 List Available Voices</button>
+    <button onclick="clearLog()">🗑️ Clear Log</button>
+    
+    <div id="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${timestamp}] ${message}`;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function clearLog() {
+            log.innerHTML = '';
+        }
+        
+        function listVoices() {
+            addLog('=== Checking available voices ===');
+            
+            if (!window.speechSynthesis) {
+                addLog('❌ ERROR: Speech Synthesis not supported in this browser!', 'error');
+                return;
+            }
+            
+            const voices = window.speechSynthesis.getVoices();
+            addLog(`✅ Found ${voices.length} voices`, 'success');
+            
+            if (voices.length === 0) {
+                addLog('⚠️ No voices loaded yet. Waiting...', 'error');
+                setTimeout(() => {
+                    const voicesRetry = window.speechSynthesis.getVoices();
+                    addLog(`Retry: Found ${voicesRetry.length} voices`, voicesRetry.length > 0 ? 'success' : 'error');
+                    if (voicesRetry.length > 0) {
+                        voicesRetry.forEach((voice, i) => {
+                            const marker = voice.default ? '⭐' : '  ';
+                            addLog(`${marker} ${i + 1}. ${voice.name} (${voice.lang})`, 'info');
+                        });
+                    }
+                }, 1000);
+            } else {
+                voices.forEach((voice, i) => {
+                    const marker = voice.default ? '⭐' : '  ';
+                    addLog(`${marker} ${i + 1}. ${voice.name} (${voice.lang})`, 'info');
+                });
+            }
+        }
+        
+        function testVoice() {
+            addLog('=== Testing voice output ===');
+            
+            if (!window.speechSynthesis) {
+                addLog('❌ ERROR: Speech Synthesis not supported!', 'error');
+                alert('Your browser does not support text-to-speech');
+                return;
+            }
+            
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const text = "Hello! This is a voice test. If you can hear this, voice is working correctly.";
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Get voices
+            const voices = window.speechSynthesis.getVoices();
+            addLog(`Using ${voices.length} available voices`);
+            
+            // Try to use an English voice
+            const englishVoice = voices.find(v => v.lang.startsWith('en'));
+            if (englishVoice) {
+                utterance.voice = englishVoice;
+                addLog(`✅ Selected voice: ${englishVoice.name}`, 'success');
+            } else {
+                addLog('⚠️ No English voice found, using default', 'error');
+            }
+            
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            utterance.onstart = () => {
+                addLog('🔊 Speech STARTED', 'success');
+            };
+            
+            utterance.onend = () => {
+                addLog('✅ Speech ENDED successfully', 'success');
+            };
+            
+            utterance.onerror = (event) => {
+                addLog(`❌ ERROR: ${event.error} - ${event.message}`, 'error');
+            };
+            
+            addLog('▶️ Starting speech...');
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        // Load voices on page load
+        window.addEventListener('load', () => {
+            addLog('Page loaded. Initializing...');
+            
+            if (window.speechSynthesis) {
+                // Load voices
+                const loadVoices = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    if (voices.length > 0) {
+                        addLog(`✅ ${voices.length} voices loaded automatically`, 'success');
+                    }
+                };
+                
+                loadVoices();
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+                
+                // Force load after delay
+                setTimeout(loadVoices, 100);
+            } else {
+                addLog('❌ Speech Synthesis NOT supported in this browser', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

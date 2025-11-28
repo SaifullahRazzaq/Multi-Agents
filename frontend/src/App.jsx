@@ -12,13 +12,15 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [ttsVoice, setTtsVoice] = useState("en-US-Standard-C");
+  const [ttsVoice, setTtsVoice] = useState("Google US English"); // Browser voice name
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [useVoiceInput, setUseVoiceInput] = useState(false); // Track if voice was used
   
   const recognitionRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -41,6 +43,11 @@ export default function App() {
         setMessage(transcript);
         setIsRecording(false);
         stopWaveform();
+        console.log('Voice input detected, transcript:', transcript); // Debug
+        // Auto-send the message after voice input with voice flag
+        setTimeout(() => {
+          sendMessage(transcript, true); // Pass true for voice input
+        }, 500);
       };
 
       recognitionRef.current.onerror = () => {
@@ -55,22 +62,32 @@ export default function App() {
     }
   }, []);
 
-  // Load user's voice preference
+  // Load available voices
   useEffect(() => {
-    const loadVoicePreference = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/api/user/123/voice-preference`);
-        setTtsVoice(res.data.voice);
-      } catch (error) {
-        console.error("Error loading voice preference:", error);
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      console.log('Available voices:', voices.length); // Debug log
+      const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+      setAvailableVoices(englishVoices);
+      
+      // Set default voice if available
+      if (englishVoices.length > 0) {
+        const defaultVoice = englishVoices.find(v => v.default) || englishVoices[0];
+        setTtsVoice(defaultVoice.name);
+        console.log('Default voice set:', defaultVoice.name); // Debug log
       }
     };
-    loadVoicePreference();
     
-    // Track page view
-    axios.post(`${API_URL}/api/analytics/page-view`).catch(err => {
-      console.error("Error tracking page view:", err);
-    });
+    // Load voices immediately
+    loadVoices();
+    
+    // Also load on voiceschanged event (needed for some browsers)
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    
+    // Force load after a short delay (Chrome workaround)
+    setTimeout(loadVoices, 100);
   }, []);
 
   // Auto-scroll to bottom of chat
@@ -122,9 +139,11 @@ export default function App() {
     }
   };
 
-  const sendMessage = async (customMessage = null) => {
+  const sendMessage = async (customMessage = null, isVoiceInput = false) => {
     const messageToSend = customMessage || message;
     if (!messageToSend.trim() && !selectedFile) return;
+
+    console.log('sendMessage called with voice flag:', isVoiceInput); // Debug
 
     const userMessage = messageToSend;
     setMessage("");
@@ -153,7 +172,7 @@ export default function App() {
       } else {
         res = await axios.post(`${API_URL}/api/chat`, {
           userId: "123",
-          agentId: agent,
+          // agentId removed - let backend router decide based on question
           message: userMessage
         });
       }
@@ -161,9 +180,23 @@ export default function App() {
       // Add agent response to chat
       setChat(prev => [...prev, { from: "agent", text: res.data.reply }]);
 
-      // Text-to-Speech using backend
-      if (ttsVoice !== "none") {
-        speakTextBackend(res.data.reply);
+      // Debug: Check voice conditions
+      console.log('Voice check:', {
+        isVoiceInput,
+        ttsVoice,
+        condition: isVoiceInput && ttsVoice && ttsVoice !== "none"
+      });
+
+      // Text-to-Speech ONLY if voice input was used
+      if (isVoiceInput && ttsVoice && ttsVoice !== "none") {
+        console.log('✅ Calling speakText...'); // Debug
+        speakText(res.data.reply);
+      } else {
+        console.log('❌ Voice skipped - reason:', {
+          isVoiceInput,
+          ttsVoice,
+          voiceNone: ttsVoice === "none"
+        }); // Debug
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -173,32 +206,61 @@ export default function App() {
     }
   };
 
-  const speakTextBackend = async (text) => {
-    try {
-      setIsLoadingAudio(true);
-      setIsSpeaking(true);
-      const res = await axios.post(`${API_URL}/api/tts`, {
-        text: text,
-        voice: ttsVoice
-      }, {
-        responseType: 'blob'
-      });
-      
-      const audioBlob = new Blob([res.data], { type: 'audio/mpeg' });
-      const url = URL.createObjectURL(audioBlob);
-      setAudioUrl(url);
-      
-      // Auto-play the audio
-      if (audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.play();
-      }
-    } catch (error) {
-      console.error("Error generating speech:", error);
-      setIsSpeaking(false);
-    } finally {
-      setIsLoadingAudio(false);
+  const speakText = (text) => {
+    console.log('speakText called with:', text.substring(0, 50)); // Debug log
+    
+    if (!window.speechSynthesis) {
+      console.error("Speech synthesis not supported");
+      alert("Your browser doesn't support text-to-speech");
+      return;
     }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Get fresh voices list
+    const voices = window.speechSynthesis.getVoices();
+    console.log('Available voices for speaking:', voices.length); // Debug log
+    
+    // Find and set the selected voice
+    let selectedVoice = voices.find(v => v.name === ttsVoice);
+    
+    // Fallback to first English voice if selected not found
+    if (!selectedVoice) {
+      selectedVoice = voices.find(v => v.lang.startsWith('en'));
+    }
+    
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      console.log('Using voice:', selectedVoice.name); // Debug log
+    } else {
+      console.warn('No voice found, using default');
+    }
+
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => {
+      console.log('Speech started'); // Debug log
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      console.log('Speech ended'); // Debug log
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = (event) => {
+      console.error("Speech synthesis error:", event.error); // Debug log
+      setIsSpeaking(false);
+      alert(`Voice error: ${event.error}`);
+    };
+
+    console.log('Starting speech...'); // Debug log
+    window.speechSynthesis.speak(utterance);
   };
 
   const toggleAudioPlayback = () => {
@@ -225,57 +287,9 @@ export default function App() {
     }
   };
 
-  const handleVoiceChange = async (newVoice) => {
+  const handleVoiceChange = (newVoice) => {
     setTtsVoice(newVoice);
-    // Save to backend
-    try {
-      await axios.post(`${API_URL}/api/user/123/voice-preference`, {
-        voice: newVoice
-      });
-    } catch (error) {
-      console.error("Error saving voice preference:", error);
-    }
   };
-
-  // Get available TTS voices
-  const getAvailableVoices = () => {
-    if ('speechSynthesis' in window) {
-      const voices = window.speechSynthesis.getVoices();
-      return voices.filter(v => v.lang.startsWith('en'));
-    }
-    return [];
-  };
-
-  const [availableVoices, setAvailableVoices] = useState([]);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      setAvailableVoices(getAvailableVoices());
-    };
-    
-    loadVoices();
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }, []);
-
-  // Audio event handlers
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.onplay = () => {
-        setIsPlaying(true);
-        setIsSpeaking(true);
-      };
-      audioRef.current.onpause = () => {
-        setIsPlaying(false);
-        setIsSpeaking(false);
-      };
-      audioRef.current.onended = () => {
-        setIsPlaying(false);
-        setIsSpeaking(false);
-      };
-    }
-  }, []);
 
   if (view === "admin") {
     return <AdminDashboard onBackToChat={() => setView("chat")} />;
@@ -285,31 +299,13 @@ export default function App() {
     return <Payment onBackToChat={() => setView("chat")} />;
   }
 
-  if (view === "voice") {
-    return (
-      <VoiceMode 
-        onExit={() => setView("chat")}
-        onSendMessage={sendMessage}
-        agent={agent}
-        ttsVoice={ttsVoice}
-        isProcessing={isProcessing}
-        isSpeaking={isSpeaking}
-      />
-    );
-  }
-
+  // Voice Mode removed - using mic button in chat instead
   return (
     <div className="app-container">
       <div className="chat-header">
         <h1>Multi-Agent Chat</h1>
         <div className="header-controls">
-          <button 
-            className="admin-toggle-btn"
-            onClick={() => setView("voice")}
-            title="Voice Mode"
-          >
-            🎙️ Voice
-          </button>
+          {/* Voice Mode button removed - using mic button instead */}
           <button 
             className="admin-toggle-btn"
             onClick={() => setView("payment")}
@@ -344,10 +340,11 @@ export default function App() {
             value={ttsVoice}
           >
             <option value="none">No Voice</option>
-            <option value="en-US-Standard-C">Female 1</option>
-            <option value="en-US-Standard-D">Male 1</option>
-            <option value="en-US-Wavenet-F">Female 2 (Wavenet)</option>
-            <option value="en-US-Wavenet-J">Male 2 (Wavenet)</option>
+            {availableVoices.map((voice, index) => (
+              <option key={index} value={voice.name}>
+                {voice.name} ({voice.lang})
+              </option>
+            ))}
           </select>
         </div>
       </div>

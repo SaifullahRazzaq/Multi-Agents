@@ -76,3 +76,4 @@ backend/*.json
 # Credentials
 *credentials*.json
 *service-account*.json
+.env*.local

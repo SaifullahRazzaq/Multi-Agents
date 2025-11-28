@@ -1,0 +1,14 @@
+{
+    "name": "gemini-multi-agent",
+    "version": "1.0.0",
+    "description": "Multi-agent chat system using Google Gemini",
+    "scripts": {
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "dev:backend": "cd backend && source venv/bin/activate && uvicorn server:app --reload --host 0.0.0.0 --port 8000",
+        "dev:frontend": "cd frontend && npm run dev",
+        "install:all": "cd frontend && npm install"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.0"
+    }
+}
